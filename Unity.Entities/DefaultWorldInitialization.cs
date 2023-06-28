@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using Unity.Assertions;
 using UnityEngine;
 using Unity.Collections;
@@ -12,6 +13,9 @@ using Unity.Profiling;
 using UnityEngine.LowLevel;
 using UnityEngine.PlayerLoop;
 using System.Linq;
+
+[assembly: InternalsVisibleTo("Core.Harness")]
+[assembly: InternalsVisibleTo("Core.Testing")]
 
 namespace Unity.Entities
 {
