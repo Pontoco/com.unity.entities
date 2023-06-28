@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using Unity.Assertions;
 using UnityEngine;
 using Unity.Collections;
@@ -16,6 +17,8 @@ using UnityEngine.PlayerLoop;
 #if !NET_DOTS
 using System.Linq;
 #endif
+
+[assembly: InternalsVisibleTo("Core.Harness")]
 
 namespace Unity.Entities
 {
