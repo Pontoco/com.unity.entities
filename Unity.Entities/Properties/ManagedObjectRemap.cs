@@ -14,6 +14,7 @@ namespace Unity.Entities
 
     unsafe class ManagedObjectRemap :
         IPropertyBagVisitor,
+        IDictionaryPropertyBagVisitor,
         IPropertyVisitor,
         ITypedVisit<Entity>
     {
@@ -106,6 +107,37 @@ namespace Unity.Entities
         {
             foreach (var property in properties.GetProperties(ref container))
                 ((IPropertyAccept<TContainer>)property).Accept(this, ref container);
+        }
+        
+        /// <summary>
+        /// Invoked by Unity.Properties for each dictionary type (i.e. Dictionary).
+        /// </summary>
+        /// <remarks>
+        /// Added by Pontoco to support Entity Remapping within Dictionaries. This is carefully written to avoid excess copying / allocation of keys and values.
+        /// </remarks>
+        /// <param name="properties">The dictionary property bag being visited.</param>
+        /// <param name="container">The dictionary being visited.</param>
+        void IDictionaryPropertyBagVisitor.Visit<TDictionary, TKey, TValue>(IDictionaryPropertyBag<TDictionary, TKey, TValue> properties, ref TDictionary container) 
+        {
+            foreach (var prop in properties.GetProperties(ref container))
+            {
+                (TKey key, TValue value) = (KeyValuePair<TKey, TValue>) prop.GetValue(ref container);
+
+                // Check if the visited dictionary has TValue of type Entity. This works because this *only* implements
+                // ITypedVisit<Entity>, so the only time this cast will succeed is when TValue==Entity.
+                // This is a clever way to do concrete type casting without needing a lot of boxing / allocation.
+                if (this is ITypedVisit<TValue> typed)
+                {
+                    typed.Visit(null, ref container, ref value);
+                    prop.SetValue(ref container, new KeyValuePair<TKey, TValue>(key, value));
+                }
+                else
+                {
+                    // Otherwise, recurse through the value type as a container to find any Entity types on it.
+                    PropertyContainer.Accept(this, ref value); 
+                    prop.SetValue(ref container, new KeyValuePair<TKey, TValue>(key, value));
+                }
+            }
         }
 
         /// <summary>
