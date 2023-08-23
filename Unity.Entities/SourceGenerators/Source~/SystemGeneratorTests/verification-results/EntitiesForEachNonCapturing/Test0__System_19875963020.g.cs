@@ -117,9 +117,12 @@ partial class EntitiesForEachNonCapturing : global::Unity.Entities.SystemBase
     {
         __TypeHandle.__Translation_RW_ComponentTypeHandle.Update(ref this.CheckedStateRef);
         var __job = new EntitiesForEachNonCapturing_625D99F_LambdaJob_0_Job{__translationTypeHandle = __TypeHandle.__Translation_RW_ComponentTypeHandle};
-        this.CheckedStateRef.CompleteDependency();
-        var __functionPointer = global::Unity.Jobs.LowLevel.Unsafe.JobsUtility.JobCompilerEnabled ? EntitiesForEachNonCapturing_625D99F_LambdaJob_0_Job.FunctionPtrFieldBurst : EntitiesForEachNonCapturing_625D99F_LambdaJob_0_Job.FunctionPtrFieldNoBurst;
-        global::Unity.Entities.Internal.InternalCompilerInterface.UnsafeRunJobChunk(ref __job, __query_1641826535_0, __functionPointer);
+        if (!__query_1641826535_0.IsEmptyIgnoreFilter)
+        {
+            this.CheckedStateRef.CompleteDependency();
+            var __functionPointer = global::Unity.Jobs.LowLevel.Unsafe.JobsUtility.JobCompilerEnabled ? EntitiesForEachNonCapturing_625D99F_LambdaJob_0_Job.FunctionPtrFieldBurst : EntitiesForEachNonCapturing_625D99F_LambdaJob_0_Job.FunctionPtrFieldNoBurst;
+            global::Unity.Entities.Internal.InternalCompilerInterface.UnsafeRunJobChunk(ref __job, __query_1641826535_0, __functionPointer);
+        }
     }
 
     TypeHandle __TypeHandle;

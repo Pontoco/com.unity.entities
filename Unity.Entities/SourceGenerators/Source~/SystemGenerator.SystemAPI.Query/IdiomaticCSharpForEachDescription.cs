@@ -156,12 +156,21 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.Query
 
         public IEnumerable<string> GetStatementsToInsertBeforeForEachIteration()
         {
+            // Create a scope wrapping the whole foreach conditioned on there being entities
+            // to work on, otherwise there is no point in doing any of the logic here.
+            // Note, we do not close the scope for the if-statement here, it will be closed
+            // in GetStatementsToInsertAfterForEachIteration.
+            yield return
+                @$"if(!{SourceGeneratedEntityQueryFieldName}.IsEmptyIgnoreFilter)
+                {{
+                    {_typeContainingTargetEnumerator_FullyQualifiedName}.CompleteDependencyBeforeRW(ref {_systemStateName});
+                ";
+
             yield return $"__TypeHandle.{ContainerOrAspectTypeHandleFieldName}.Update(ref {_systemStateName});";
 
             if (RequiresAspectLookupField)
                 yield return $"__TypeHandle.{AspectLookupTypeHandleFieldName}.Update(ref {_systemStateName});";
 
-            yield return $"{_typeContainingTargetEnumerator_FullyQualifiedName}.CompleteDependencyBeforeRW(ref {_systemStateName});";
 
             foreach (var arg in _sharedComponentFilterArguments)
                 yield return $"{SourceGeneratedEntityQueryFieldName}.SetSharedComponentFilter({arg});";
@@ -544,6 +553,10 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.Query
         {
             if (HasSharedComponentFilter)
                 yield return $"{SourceGeneratedEntityQueryFieldName}.ResetFilter();";
+
+            // End scope started in GetStatementsToInsertBeforeForEachIteration for the
+            // if(!<query>.IsEmptyIgnoreFilter) { block 
+            yield return $"}}";
         }
     }
 }

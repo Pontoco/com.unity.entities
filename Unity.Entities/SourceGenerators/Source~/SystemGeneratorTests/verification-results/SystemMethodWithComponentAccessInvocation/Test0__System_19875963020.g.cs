@@ -12,22 +12,27 @@ public partial struct RotationSpeedSystemForEachISystem : global::Unity.Entities
     void __OnUpdate_6E994214(ref SystemState state)
     {
             #line 21 "/0/Test0.cs"
+            if (!__query_1641826537_0.IsEmptyIgnoreFilter)
+            {
+                IFE_1641826537_0.CompleteDependencyBeforeRW(ref state);
+            #line hidden
             __TypeHandle.__IFE_1641826537_0_RW_TypeHandle.Update(ref state);
             #line hidden
-            IFE_1641826537_0.CompleteDependencyBeforeRW(ref state);
-            #line hidden
             foreach (var(rotationSpeed, entity)in IFE_1641826537_0.Query(__query_1641826537_0, __TypeHandle.__IFE_1641826537_0_RW_TypeHandle))
-            {
-                    #line 23 "/0/Test0.cs"
-                    state.EntityManager.CompleteDependencyBeforeRO<global::Unity.Entities.Tests.EcsTestData>();
-                    #line hidden
-                    __TypeHandle.__Unity_Entities_Tests_EcsTestData_RO_ComponentLookup.Update(ref state);
-                    #line hidden
-                    var rotation = __TypeHandle.__Unity_Entities_Tests_EcsTestData_RO_ComponentLookup[entity];
-            }
+                {
+                        #line 23 "/0/Test0.cs"
+                        state.EntityManager.CompleteDependencyBeforeRO<global::Unity.Entities.Tests.EcsTestData>();
+                        #line hidden
+                        __TypeHandle.__Unity_Entities_Tests_EcsTestData_RO_ComponentLookup.Update(ref state);
+                        #line hidden
+                        var rotation = __TypeHandle.__Unity_Entities_Tests_EcsTestData_RO_ComponentLookup[entity];
+                }
+                #line hidden
+                
+                 }
     }
 
-    #line 31 "Temp/GeneratedCode/TestProject/Test0__System_19875963020.g.cs"
+    #line 36 "Temp/GeneratedCode/TestProject/Test0__System_19875963020.g.cs"
     readonly struct IFE_1641826537_0
     {
         public struct ResolvedChunk

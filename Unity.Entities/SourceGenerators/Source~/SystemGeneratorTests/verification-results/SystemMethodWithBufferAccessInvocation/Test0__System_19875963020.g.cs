@@ -12,38 +12,43 @@ public partial struct RotationSpeedSystemForEachISystem : global::Unity.Entities
     void __OnUpdate_6E994214(ref SystemState state)
     {
             #line 21 "/0/Test0.cs"
+            if (!__query_1641826537_0.IsEmptyIgnoreFilter)
+            {
+                IFE_1641826537_0.CompleteDependencyBeforeRW(ref state);
+            #line hidden
             __TypeHandle.__IFE_1641826537_0_RW_TypeHandle.Update(ref state);
             #line hidden
-            IFE_1641826537_0.CompleteDependencyBeforeRW(ref state);
-            #line hidden
             foreach (var(data, entity)in IFE_1641826537_0.Query(__query_1641826537_0, __TypeHandle.__IFE_1641826537_0_RW_TypeHandle))
-            {
-                    #line 23 "/0/Test0.cs"
-                    __TypeHandle.__BufferData_RW_BufferLookup.Update(ref state);
-                    #line hidden
-                    var lookup_rw = __TypeHandle.__BufferData_RW_BufferLookup;
-                    #line 24 "/0/Test0.cs"
-                    __TypeHandle.__BufferData_RO_BufferLookup.Update(ref state);
-                    #line hidden
-                    var lookup_ro = __TypeHandle.__BufferData_RO_BufferLookup;
-                    #line 28 "/0/Test0.cs"
-                    state.EntityManager.CompleteDependencyBeforeRO<global::BufferData>();
-                    #line hidden
-                    __TypeHandle.__BufferData_RO_BufferLookup.Update(ref state);
-                    #line hidden
-                    if (__TypeHandle.__BufferData_RO_BufferLookup.HasBuffer(entity))
-                    {
-                            #line 28 "/0/Test0.cs"
-                            state.EntityManager.CompleteDependencyBeforeRW<global::BufferData>();
-                            #line hidden
-                            __TypeHandle.__BufferData_RW_BufferLookup.Update(ref state);
-                            #line hidden
-                            var rotation = __TypeHandle.__BufferData_RW_BufferLookup[entity];
-                    }
-            }
+                {
+                        #line 23 "/0/Test0.cs"
+                        __TypeHandle.__BufferData_RW_BufferLookup.Update(ref state);
+                        #line hidden
+                        var lookup_rw = __TypeHandle.__BufferData_RW_BufferLookup;
+                        #line 24 "/0/Test0.cs"
+                        __TypeHandle.__BufferData_RO_BufferLookup.Update(ref state);
+                        #line hidden
+                        var lookup_ro = __TypeHandle.__BufferData_RO_BufferLookup;
+                        #line 28 "/0/Test0.cs"
+                        state.EntityManager.CompleteDependencyBeforeRO<global::BufferData>();
+                        #line hidden
+                        __TypeHandle.__BufferData_RO_BufferLookup.Update(ref state);
+                        #line hidden
+                        if (__TypeHandle.__BufferData_RO_BufferLookup.HasBuffer(entity))
+                        {
+                                #line 28 "/0/Test0.cs"
+                                state.EntityManager.CompleteDependencyBeforeRW<global::BufferData>();
+                                #line hidden
+                                __TypeHandle.__BufferData_RW_BufferLookup.Update(ref state);
+                                #line hidden
+                                var rotation = __TypeHandle.__BufferData_RW_BufferLookup[entity];
+                        }
+                }
+                #line hidden
+                
+                 }
     }
 
-    #line 47 "Temp/GeneratedCode/TestProject/Test0__System_19875963020.g.cs"
+    #line 52 "Temp/GeneratedCode/TestProject/Test0__System_19875963020.g.cs"
     readonly struct IFE_1641826537_0
     {
         public struct ResolvedChunk

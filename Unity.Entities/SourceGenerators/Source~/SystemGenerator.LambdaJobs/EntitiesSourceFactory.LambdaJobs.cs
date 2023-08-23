@@ -706,8 +706,11 @@ namespace Unity.Entities.SourceGen.LambdaJobs
                                     ", __entityArray".EmitIfTrue(description.WithFilterEntityArray != null);
 
                                 return $@"
-                                this.CheckedStateRef.CompleteDependency();
-                                __job.RunWithStructuralChange({description.EntityQueryFieldName}{entityArray});";
+                                if(!{description.EntityQueryFieldName}.IsEmptyIgnoreFilter)
+                                {{
+                                    this.CheckedStateRef.CompleteDependency();
+                                    __job.RunWithStructuralChange({description.EntityQueryFieldName}{entityArray});
+                                }}";
                             }
 
                             if (description.Burst.IsEnabled)
@@ -722,14 +725,20 @@ namespace Unity.Entities.SourceGen.LambdaJobs
                                     : $"ref __job, {description.EntityQueryFieldName}, __functionPointer";
 
                                 return $@"
-                                this.CheckedStateRef.CompleteDependency();
-                                {additionalSetup}
-                                global::Unity.Entities.Internal.InternalCompilerInterface.{scheduleMethod}({scheduleArguments});";
+                                if(!{description.EntityQueryFieldName}.IsEmptyIgnoreFilter)
+                                {{
+                                    this.CheckedStateRef.CompleteDependency();
+                                    {additionalSetup}
+                                    global::Unity.Entities.Internal.InternalCompilerInterface.{scheduleMethod}({scheduleArguments});
+                                }}";
                             }
 
                             return $@"
-                                            this.CheckedStateRef.CompleteDependency();
-                                            {JobChunkExtensionType()}.RunByRefWithoutJobs(ref __job, {description.EntityQueryFieldName});";
+                                            if(!{description.EntityQueryFieldName}.IsEmptyIgnoreFilter)
+                                            {{
+                                                this.CheckedStateRef.CompleteDependency();
+                                                {JobChunkExtensionType()}.RunByRefWithoutJobs(ref __job, {description.EntityQueryFieldName});
+                                            }}";
                         }
 
                         case ScheduleMode.Schedule:

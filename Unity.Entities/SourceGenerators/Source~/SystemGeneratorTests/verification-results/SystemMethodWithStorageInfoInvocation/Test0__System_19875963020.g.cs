@@ -16,22 +16,27 @@ public partial struct RotationSpeedSystemForEachISystem : global::Unity.Entities
             #line hidden
             var storageInfo = __TypeHandle.__EntityStorageInfoLookup;
             #line 22 "/0/Test0.cs"
+            if (!__query_1641826537_0.IsEmptyIgnoreFilter)
+            {
+                IFE_1641826537_0.CompleteDependencyBeforeRW(ref state);
+            #line hidden
             __TypeHandle.__IFE_1641826537_0_RW_TypeHandle.Update(ref state);
             #line hidden
-            IFE_1641826537_0.CompleteDependencyBeforeRW(ref state);
-            #line hidden
             foreach (var(data, entity)in IFE_1641826537_0.Query(__query_1641826537_0, __TypeHandle.__IFE_1641826537_0_RW_TypeHandle))
-            {
-                    #line 24 "/0/Test0.cs"
-                    __TypeHandle.__EntityStorageInfoLookup.Update(ref state);
-                    #line hidden
-                    var check1 = __TypeHandle.__EntityStorageInfoLookup.Exists(entity);
-                #line 25 "/0/Test0.cs"
-                var check2 = storageInfo.Exists(entity);
-            }
+                {
+                        #line 24 "/0/Test0.cs"
+                        __TypeHandle.__EntityStorageInfoLookup.Update(ref state);
+                        #line hidden
+                        var check1 = __TypeHandle.__EntityStorageInfoLookup.Exists(entity);
+                    #line 25 "/0/Test0.cs"
+                    var check2 = storageInfo.Exists(entity);
+                }
+                #line hidden
+                
+                 }
     }
 
-    #line 35 "Temp/GeneratedCode/TestProject/Test0__System_19875963020.g.cs"
+    #line 40 "Temp/GeneratedCode/TestProject/Test0__System_19875963020.g.cs"
     readonly struct IFE_1641826537_0
     {
         public struct ResolvedChunk

@@ -101,9 +101,12 @@ partial class EntitiesForEachDynamicBuffer : global::Unity.Entities.SystemBase
     {
         __TypeHandle.__BufferData_RW_BufferTypeHandle.Update(ref this.CheckedStateRef);
         var __job = new EntitiesForEachDynamicBuffer_2C1FEB3C_LambdaJob_0_Job{__bufTypeHandle = __TypeHandle.__BufferData_RW_BufferTypeHandle};
-        this.CheckedStateRef.CompleteDependency();
-        var __functionPointer = global::Unity.Jobs.LowLevel.Unsafe.JobsUtility.JobCompilerEnabled ? EntitiesForEachDynamicBuffer_2C1FEB3C_LambdaJob_0_Job.FunctionPtrFieldBurst : EntitiesForEachDynamicBuffer_2C1FEB3C_LambdaJob_0_Job.FunctionPtrFieldNoBurst;
-        global::Unity.Entities.Internal.InternalCompilerInterface.UnsafeRunJobChunk(ref __job, __query_1641826531_0, __functionPointer);
+        if (!__query_1641826531_0.IsEmptyIgnoreFilter)
+        {
+            this.CheckedStateRef.CompleteDependency();
+            var __functionPointer = global::Unity.Jobs.LowLevel.Unsafe.JobsUtility.JobCompilerEnabled ? EntitiesForEachDynamicBuffer_2C1FEB3C_LambdaJob_0_Job.FunctionPtrFieldBurst : EntitiesForEachDynamicBuffer_2C1FEB3C_LambdaJob_0_Job.FunctionPtrFieldNoBurst;
+            global::Unity.Entities.Internal.InternalCompilerInterface.UnsafeRunJobChunk(ref __job, __query_1641826531_0, __functionPointer);
+        }
     }
 
     TypeHandle __TypeHandle;
