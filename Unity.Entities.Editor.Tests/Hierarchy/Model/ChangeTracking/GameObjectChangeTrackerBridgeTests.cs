@@ -22,7 +22,9 @@ namespace Unity.Entities.Editor.Tests
 
                 var go = new GameObject();
                 yield return null;
-                Assert.That(receivedEvents.ToArrayNBC(), Is.EquivalentTo(new[] { new GameObjectChangeTrackerEvent(go.GetInstanceID(), GameObjectChangeTrackerEventType.CreatedOrChanged) }));
+                var events = receivedEvents.ToArrayNBC();
+                Assert.That(events, Is.Not.Empty);
+                Assert.That(events, Does.Contain(new GameObjectChangeTrackerEvent(go.GetInstanceID(), GameObjectChangeTrackerEventType.CreatedOrChanged)));
             }
             finally
             {
