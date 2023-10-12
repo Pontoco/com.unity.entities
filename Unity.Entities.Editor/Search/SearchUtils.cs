@@ -2,12 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Unity.Collections;
-using UnityEditor;
 using UnityEditor.Search;
 using UnityEngine;
 using Unity.Editor.Bridge;
-using UnityEditor.UI;
 using UnityEngine.UIElements;
 
 namespace Unity.Entities.Editor
@@ -200,6 +197,7 @@ namespace Unity.Entities.Editor
         }
     }
 
+#if (UNITY_EDITOR || DEVELOPMENT_BUILD) && !DISABLE_ENTITIES_JOURNALING
     [QueryListBlock("Record Type", "rt", "rt", "=")]
     class QueryRecordTypeBlock : QueryListBlock
     {
@@ -213,6 +211,7 @@ namespace Unity.Entities.Editor
             return SearchUtils.GetEnumPropositions<EntitiesJournaling.RecordType>(flags, this, "Record Type:");
         }
     }
+#endif
 
     static class SearchUtils
     {
@@ -267,10 +266,6 @@ namespace Unity.Entities.Editor
 
         const string k_EditorWorld = "Editor World";
         const string k_DefaultWorld = "Default World";
-        static string GetDefaultWorldName()
-        {
-            return EditorApplication.isPlaying ? k_DefaultWorld : k_EditorWorld;
-        }
 
         public static World FindWorld(string worldName = null)
         {
@@ -282,10 +277,31 @@ namespace Unity.Entities.Editor
                 else if (worldName == "editor")
                     worldName = k_EditorWorld;
             }
-            worldName = worldName ?? GetDefaultWorldName();
-            foreach (var w in World.All)
-                if (w.Name.Equals(worldName, System.StringComparison.InvariantCultureIgnoreCase))
-                    return w;
+
+            foreach (var world in World.All)
+            {
+                var name = world.Name;
+                if (worldName != null)
+                {
+                    if (name.Equals(worldName, StringComparison.InvariantCultureIgnoreCase))
+                        return world;
+                }
+                else
+                {
+                    if ((world.Flags & WorldFlags.Editor) != 0)
+                        return world;
+
+                    if ((world.Flags & WorldFlags.Game) != 0)
+                        return world;
+
+                    if ((world.Flags & WorldFlags.GameServer) != 0)
+                        return world;
+
+                    if ((world.Flags & WorldFlags.Live) != 0)
+                        return world;
+                }
+            }
+
             return null;
         }
 
@@ -349,7 +365,7 @@ namespace Unity.Entities.Editor
 
             var regexStr = $"\\b{filter}{op}(\\S*)";
             var regex = new Regex(regexStr);
-            
+
             var newQuery = regex.Replace(originalQuery, newFilter);
             var m = regex.Match(originalQuery);
             if (newQuery == originalQuery)

@@ -37,7 +37,6 @@ namespace Unity.Entities
             SystemVersionNode* m_LastSystemVersionNode;
             SpinLock m_Lock;
             ulong m_RecordIndex;
-            int m_ErrorFailedResolveCount;
 
             internal JournalingState(int capacityInBytes)
             {
@@ -50,7 +49,6 @@ namespace Unity.Entities
                 m_LastSystemVersionNode = null;
                 m_Lock = new SpinLock();
                 m_RecordIndex = 0;
-                m_ErrorFailedResolveCount = 10;
             }
 
             internal int RecordCount => m_Records.Count;
@@ -183,9 +181,9 @@ namespace Unity.Entities
                 }
             }
 
-            internal void PushBack(RecordType recordType, ulong worldSequenceNumber, in SystemHandle executingSystem, in SystemHandle originSystem, Chunk* chunks, int chunkCount, TypeIndex* types, int typeCount, void* data, int dataLength)
+            internal void PushBack(RecordType recordType, ulong worldSequenceNumber, in SystemHandle executingSystem, in SystemHandle originSystem, Archetype* archetype, ChunkIndex chunk, TypeIndex* types, int typeCount, void* data, int dataLength)
             {
-                var entityCount = GetEntityCount(chunks, chunkCount);
+                var entityCount = chunk.Count;
 
                 m_Lock.Acquire();
                 try
@@ -194,7 +192,7 @@ namespace Unity.Entities
                         return;
 
                     PushBackHeader(recordType, worldSequenceNumber, in executingSystem, in originSystem, entityCount, typeCount, dataLength);
-                    PushBackEntities(chunks, chunkCount);
+                    PushBackEntities(archetype, chunk);
                     PushBackTypes(types, typeCount);
                     PushBackData(data, dataLength);
                 }
@@ -246,9 +244,9 @@ namespace Unity.Entities
                 }
             }
 
-            internal void PushBack(RecordType recordType, EntityComponentStore* store, uint version, in SystemHandle originSystem, Chunk* chunks, int chunkCount, TypeIndex* types, int typeCount, void* data, int dataLength)
+            internal void PushBack(RecordType recordType, EntityComponentStore* store, uint version, in SystemHandle originSystem, Archetype* archetype, ChunkIndex chunk, TypeIndex* types, int typeCount, void* data, int dataLength)
             {
-                var entityCount = GetEntityCount(chunks, chunkCount);
+                var entityCount = chunk.Count;
 
                 m_Lock.Acquire();
                 try
@@ -258,7 +256,7 @@ namespace Unity.Entities
 
                     var executingSystem = GetSystemHandle(store, version);
                     PushBackHeader(recordType, store->WorldSequenceNumber, in executingSystem, in originSystem, entityCount, typeCount, dataLength);
-                    PushBackEntities(chunks, chunkCount);
+                    PushBackEntities(archetype, chunk);
                     PushBackTypes(types, typeCount);
                     PushBackData(data, dataLength);
                 }
@@ -382,8 +380,8 @@ namespace Unity.Entities
                 {
                     var archetypeChunk = chunks[i];
                     var chunk = archetypeChunk.m_Chunk;
-                    var archetype = chunk->Archetype;
-                    var buffer = chunk->Buffer;
+                    var archetype = archetypeChunk.Archetype.Archetype;
+                    var buffer = chunk.Buffer;
                     var length = archetypeChunk.Count;
                     var startOffset = archetype->Offsets[0];
                     if (!m_Buffer.PushBack(buffer + startOffset, sizeof(Entity) * length))
@@ -391,21 +389,16 @@ namespace Unity.Entities
                 }
             }
 
-            void PushBackEntities(Chunk* chunks, int chunkCount)
+            void PushBackEntities(Archetype* archetype, ChunkIndex chunk)
             {
-                if (chunks == null || chunkCount <= 0)
+                if (chunk == ChunkIndex.Null)
                     return;
 
-                for (var i = 0; i < chunkCount; ++i)
-                {
-                    var chunk = chunks[i];
-                    var archetype = chunk.Archetype;
-                    var buffer = chunk.Buffer;
-                    var length = chunk.Count;
-                    var startOffset = archetype->Offsets[0];
-                    if (!m_Buffer.PushBack(buffer + startOffset, sizeof(Entity) * length))
-                        UnityEngine.Debug.LogError($"EntitiesJournaling: Failed to push back chunk entities in buffer.");
-                }
+                var buffer = chunk.Buffer;
+                var length = chunk.Count;
+                var startOffset = archetype->Offsets[0];
+                if (!m_Buffer.PushBack(buffer + startOffset, sizeof(Entity) * length))
+                    UnityEngine.Debug.LogError($"EntitiesJournaling: Failed to push back chunk entities in buffer.");
             }
 
             void PushBackTypes(TypeIndex* types, int typeCount)
@@ -463,9 +456,6 @@ namespace Unity.Entities
                 m_SystemVersionNodes = node;
                 m_LastSystemVersionNode = node;
 
-                // Initialize buffer with initial global system version with default system handle
-                node->Buffer->PushBack(new SystemVersionHandle { Version = ChangeVersionUtility.InitialGlobalSystemVersion, Handle = default });
-
                 return node->Buffer;
             }
 
@@ -496,27 +486,14 @@ namespace Unity.Entities
                         return element.Handle;
                 }
 
-                if (m_ErrorFailedResolveCount > 0)
-                {
-                    UnityEngine.Debug.LogError($"EntitiesJournaling: Failed to resolve system handle for global system version {globalSystemVersion}.");
-                    m_ErrorFailedResolveCount--;
-                }
+                // System handle not found for this version.
+                // Here it could mean an event recorded outside a system (legitimate)
+                // or a system handle was not recorded (bug), but we cannot know for sure.
+                // Because of this, we cannot throw an error here.
                 return default;
             }
 
             static int GetEntityCount(ArchetypeChunk* chunks, int chunkCount)
-            {
-                if (chunks == null || chunkCount <= 0)
-                    return 0;
-
-                var entityCount = 0;
-                for (var i = 0; i < chunkCount; ++i)
-                    entityCount += chunks[i].Count;
-
-                return entityCount;
-            }
-
-            static int GetEntityCount(Chunk* chunks, int chunkCount)
             {
                 if (chunks == null || chunkCount <= 0)
                     return 0;

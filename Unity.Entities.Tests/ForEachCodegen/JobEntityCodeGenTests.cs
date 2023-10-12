@@ -196,7 +196,6 @@ namespace Unity.Entities.Tests.ForEachCodegen
 
         #region ManagedComponents
 #if !UNITY_DISABLE_MANAGED_COMPONENTS
-#if !UNITY_DOTSRUNTIME
         [Test]
         public void UnityEngineComponent() => m_TestSystem.UnityEngineComponent();
 
@@ -205,7 +204,6 @@ namespace Unity.Entities.Tests.ForEachCodegen
 
         [Test]
         public void UnityEngineScriptableObject() => m_TestSystem.UnityEngineScriptableObject();
-#endif
         [Test]
         public void ManyManagedComponents() => m_TestSystem.ManyManagedComponents();
 #endif
@@ -229,6 +227,11 @@ namespace Unity.Entities.Tests.ForEachCodegen
         [Test]
         public void EnableableComponents([Values(ScheduleType.Run, ScheduleType.Schedule)] ScheduleType scheduleType) => m_TestSystem.EnableableComponents(scheduleType);
 
+#endregion
+
+#region DuplicateComponents
+        [Test]
+        public void DuplicateComponents([Values(ScheduleType.Run, ScheduleType.Schedule)] ScheduleType scheduleType) => m_TestSystem.DuplicateComponents(scheduleType);
 #endregion
 
 #region EntityIndexInQuery_ArrayWrites
@@ -1470,7 +1473,6 @@ namespace Unity.Entities.Tests.ForEachCodegen
 
 #region ManagedComponents
 #if !UNITY_DISABLE_MANAGED_COMPONENTS
-#if !UNITY_DOTSRUNTIME
             public partial struct UnityEngineComponentJob : IJobEntity
             {
                 void Execute(Transform transform) => transform.position = Vector3.up;
@@ -1517,7 +1519,6 @@ namespace Unity.Entities.Tests.ForEachCodegen
                 new UnityEngineScriptableObjectJob().Run();
                 Assert.AreEqual(so.value, 1);
             }
-#endif
             public partial struct ManyManagedComponentsJob : IJobEntity
             {
                 void Execute(EcsTestManagedComponent t0, EcsTestManagedComponent2 t1, EcsTestManagedComponent3 t2, EcsTestManagedComponent4 t3)
@@ -1676,6 +1677,54 @@ namespace Unity.Entities.Tests.ForEachCodegen
             }
 
 #endregion
+
+#region DuplicateComponents
+
+        [WithOptions(EntityQueryOptions.IgnoreComponentEnabledState)]
+        partial struct DuplicateComponentsJob : IJobEntity
+        {
+            public void Execute(RefRW<EcsTestDataEnableable> e1, EnabledRefRW<EcsTestDataEnableable> e2)
+            {
+                if (e2.ValueRO)
+                {
+                    e1.ValueRW.value++;
+                    e2.ValueRW = false;
+                }
+            }
+        }
+        public void DuplicateComponents(ScheduleType scheduleType)
+        {
+            using var entities = CollectionHelper.CreateNativeArray<Entity>(100, World.UpdateAllocator.ToAllocator);
+            EntityManager.CreateEntity(EntityManager.CreateArchetype(typeof(EcsTestDataEnableable)), entities);
+
+            for (int i = 0; i < entities.Length; i+=2)
+                EntityManager.SetComponentEnabled<EcsTestDataEnableable>(entities[i], false);
+
+            var job = new DuplicateComponentsJob();
+            switch (scheduleType)
+            {
+                case ScheduleType.Run:
+                    job.Run();
+                    break;
+                case ScheduleType.Schedule:
+                    job.Schedule();
+                    Dependency.Complete();
+                    break;
+            }
+
+            for (var index = 0; index < entities.Length; index++)
+            {
+                var entity = entities[index];
+
+                Assert.IsFalse(EntityManager.IsComponentEnabled<EcsTestDataEnableable>(entity));
+                Assert.AreEqual(index % 2 == 0 ? 0 : 1, EntityManager.GetComponentData<EcsTestDataEnableable>(entity).value);
+            }
+
+            EntityManager.DestroyEntity(entities);
+        }
+
+#endregion
+
 
 #region EntityIndexInQuery_ArrayWrites
 

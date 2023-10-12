@@ -25,6 +25,7 @@ namespace Unity.Entities.Tests
             None,
             Disabled,
             Absent,
+            Present,
             NoExtension
         }
 
@@ -121,6 +122,7 @@ namespace Unity.Entities.Tests
         struct EnableableNoneTag : IComponentData, IEnableableComponent {}
         struct EnableableDisabledTag : IComponentData, IEnableableComponent {}
         struct EnableableAbsentTag : IComponentData, IEnableableComponent {}
+        struct EnableablePresentTag : IComponentData, IEnableableComponent {}
         partial class IterateThroughEnableableComponents_TrackProcessedEntities : SystemBase
         {
             public NativeList<Entity> ProcessedEntities;
@@ -142,6 +144,7 @@ namespace Unity.Entities.Tests
                              .WithNone<EnableableNoneTag>()
                              .WithDisabled<EnableableDisabledTag>()
                              .WithAbsent<EnableableAbsentTag>()
+                             .WithPresent<EnableablePresentTag>()
                              .WithEntityAccess())
                 {
                     ProcessedEntities.Add(entity);
@@ -149,9 +152,56 @@ namespace Unity.Entities.Tests
             }
         }
 
+        partial struct IterateThroughEnableableComponentsWithVariousExtensionsSystem : ISystem
+        {
+            public void OnCreate(ref SystemState state)
+            {
+                state.EntityManager.AddComponent<SumData>(state.SystemHandle);
+                state.EntityManager.AddComponent<SystemQueryData>(state.SystemHandle);
+
+                var archetype = state.EntityManager.CreateArchetype(typeof(EcsTestDataEnableable));
+                const int entityCount = 1000;
+                var allEntities = state.EntityManager.CreateEntity(archetype, entityCount, Allocator.Temp);
+
+                for (int i = 0; i < entityCount; ++i)
+                    state.EntityManager.SetComponentEnabled<EcsTestDataEnableable>(allEntities[i], i % 5 != 0);
+            }
+
+            public void OnUpdate(ref SystemState state)
+            {
+                var queryExtensionToTest = state.EntityManager.GetComponentData<SystemQueryData>(state.SystemHandle).extensionToTest;
+                ref var numDisabledComponents = ref state.EntityManager.GetComponentDataRW<SumData>(state.SystemHandle).ValueRW;
+
+                switch (queryExtensionToTest)
+                {
+                    case QueryExtension.Disabled:
+                        foreach (var _ in Query<EnabledRefRO<EcsTestDataEnableable>>().WithDisabled<EcsTestDataEnableable>())
+                            numDisabledComponents.sum++;
+                        break;
+                    case QueryExtension.None:
+                        foreach (var _ in Query<EnabledRefRO<EcsTestDataEnableable>>().WithNone<EcsTestDataEnableable>())
+                            numDisabledComponents.sum++;
+                        break;
+                    case QueryExtension.Any:
+                        foreach (var _ in Query<EnabledRefRO<EcsTestDataEnableable>>().WithAny<EcsTestDataEnableable>())
+                            numDisabledComponents.sum++;
+                        break;
+                    case QueryExtension.All:
+                        foreach (var _ in Query<EnabledRefRO<EcsTestDataEnableable>>().WithAll<EcsTestDataEnableable>())
+                            numDisabledComponents.sum++;
+                        break;
+                }
+            }
+        }
+
         public struct SumData : IComponentData
         {
             public int sum;
+        }
+
+        public struct SharedComponentFilterData : IComponentData
+        {
+            public bool IsManaged;
         }
 
         partial class IterateThroughComponent_WithEnableableComponent_EnableSystem : SystemBase
@@ -292,12 +342,21 @@ namespace Unity.Entities.Tests
             public void OnCreate(ref SystemState state)
             {
                 state.EntityManager.AddComponent<SumData>(state.SystemHandle);
+                state.EntityManager.AddComponent<SharedComponentFilterData>(state.SystemHandle);
             }
+
             public void OnUpdate(ref SystemState state)
             {
+                var sharedComponentFilterData = state.EntityManager.GetComponentData<SharedComponentFilterData>(state.SystemHandle);
                 ref var sumData = ref state.EntityManager.GetComponentDataRW<SumData>(state.SystemHandle).ValueRW;
-                foreach (var ecsTestData in Query<RefRO<EcsTestData>>().WithSharedComponentFilter(new SharedData1(1)))
-                    sumData.sum += ecsTestData.ValueRO.value;
+
+                if (sharedComponentFilterData.IsManaged)
+                    foreach (var result in Query<RefRO<EcsTestData>>().WithSharedComponentFilterManaged(new ManagedSharedData1(val: 1)))
+                        sumData.sum += result.ValueRO.value;
+                else
+                    foreach (var result in Query<RefRO<EcsTestData>>().WithSharedComponentFilter(new SharedData1(1)))
+                        sumData.sum += result.ValueRO.value;
+
             }
         }
 
@@ -477,6 +536,17 @@ namespace Unity.Entities.Tests
                         break;
                     case QueryExtension.Disabled:
                         foreach (var (myAspect, ecsTestData3) in Query<MyAspect, RefRW<EcsTestData3>>().WithDisabled<EcsTestDataEnableable>().WithOptions(EntityQueryOptions.IncludeSystems))
+                        {
+                            myAspect._Data.ValueRW = new EcsTestData { value = 10 };
+                            myAspect._Data2.ValueRW = new EcsTestData2 { value0 = 20, value1 = 30 };
+
+                            ecsTestData3.ValueRW.value0 = 10;
+                            ecsTestData3.ValueRW.value1 = 20;
+                            ecsTestData3.ValueRW.value2 = 30;
+                        }
+                        break;
+                    case QueryExtension.Present:
+                        foreach (var (myAspect, ecsTestData3) in Query<MyAspect, RefRW<EcsTestData3>>().WithPresent<EcsTestDataEnableable>().WithOptions(EntityQueryOptions.IncludeSystems))
                         {
                             myAspect._Data.ValueRW = new EcsTestData { value = 10 };
                             myAspect._Data2.ValueRW = new EcsTestData2 { value0 = 20, value1 = 30 };
@@ -1049,6 +1119,12 @@ namespace Unity.Entities.Tests
                     if (i % 2 == 0)
                         m_Manager.SetComponentEnabled<EnableableAbsentTag>(e, false);
                 }
+                if ((i / 19) % 2 == 0)
+                {
+                    m_Manager.AddComponent<EnableablePresentTag>(e);
+                    if (i % 2 == 0)
+                        m_Manager.SetComponentEnabled<EnableablePresentTag>(e, false);
+                }
             }
 
             using var query = new EntityQueryBuilder(Allocator.Temp)
@@ -1057,12 +1133,36 @@ namespace Unity.Entities.Tests
                 .WithNone<EnableableNoneTag>()
                 .WithDisabled<EnableableDisabledTag>()
                 .WithAbsent<EnableableAbsentTag>()
+                .WithPresent<EnableablePresentTag>()
                 .Build(m_Manager);
             using var expectedEntities = query.ToEntityArray(Allocator.Temp);
 
             var sys = World.CreateSystemManaged<IterateThroughEnableableComponents_TrackProcessedEntities>();
             sys.Update();
             CollectionAssert.AreEqual(expectedEntities.ToArray(), sys.ProcessedEntities.AsArray().ToArray());
+        }
+
+        [Test]
+        public void ForEachIteration_IterateThroughEnableableComponents(
+            [Values(QueryExtension.None, QueryExtension.Disabled, QueryExtension.Any, QueryExtension.All)] QueryExtension queryExtension)
+        {
+            var system = World.GetOrCreateSystem<IterateThroughEnableableComponentsWithVariousExtensionsSystem>();
+            ref var queryData = ref World.EntityManager.GetComponentDataRW<SystemQueryData>(system).ValueRW;
+            queryData.extensionToTest = queryExtension;
+
+            system.Update(World.Unmanaged);
+
+            switch (queryExtension)
+            {
+                case QueryExtension.Any:
+                case QueryExtension.All:
+                    Assert.AreEqual(expected: 800, actual: World.EntityManager.GetComponentData<SumData>(system).sum);
+                    break;
+                case QueryExtension.None:
+                case QueryExtension.Disabled:
+                    Assert.AreEqual(expected: 200, actual: World.EntityManager.GetComponentData<SumData>(system).sum);
+                    break;
+            }
         }
 
         [Test]
@@ -1089,24 +1189,37 @@ namespace Unity.Entities.Tests
         }
 
         [Test]
-        public void ForEachIteration_ThroughComponent_WithSharedComponentFilter()
+        public void ForEachIteration_ThroughComponent_WithSharedComponentFilter([Values] bool isManaged)
         {
             // Creating entities here instead of inside `IterateThroughComponent_WithSharedComponentFilterSystem.OnCreate()`
             // in order to circumvent a bug in `EntityManagerDebug.CheckInternalConsistency()`:
             // See: https://unity.slack.com/archives/C01HYKXLM42/p1654006277589939
             var entity0 = World.EntityManager.CreateEntity(typeof(EcsTestData));
             World.EntityManager.SetComponentData(entity0, new EcsTestData(1));
-            World.EntityManager.AddSharedComponentManaged(entity0, new SharedData1(1));
+            if (isManaged)
+                World.EntityManager.AddSharedComponentManaged(entity0, new ManagedSharedData1(1));
+            else
+                World.EntityManager.AddSharedComponent(entity0, new SharedData1(1));
 
             var entity1 = World.EntityManager.CreateEntity(typeof(EcsTestData));
             World.EntityManager.SetComponentData(entity1, new EcsTestData(10));
-            World.EntityManager.AddSharedComponentManaged(entity1, new SharedData1(1));
+            if (isManaged)
+                World.EntityManager.AddSharedComponentManaged(entity1, new ManagedSharedData1(1));
+            else
+                World.EntityManager.AddSharedComponent(entity1, new SharedData1(1));
 
             var entity2 = World.EntityManager.CreateEntity(typeof(EcsTestData));
             World.EntityManager.SetComponentData(entity2, new EcsTestData(100));
-            World.EntityManager.AddSharedComponentManaged(entity2, new SharedData1(2));
+            if (isManaged)
+                World.EntityManager.AddSharedComponentManaged(entity2, new ManagedSharedData1(2));
+            else
+                World.EntityManager.AddSharedComponent(entity2, new SharedData1(2));
 
             var system = World.GetOrCreateSystem<IterateThroughComponent_WithSharedComponentFilterSystem>();
+
+            ref var sharedComponentFilterData = ref World.EntityManager.GetComponentDataRW<SharedComponentFilterData>(system).ValueRW;
+            sharedComponentFilterData.IsManaged = isManaged;
+
             system.Update(World.Unmanaged);
 
             Assert.AreEqual(11, World.EntityManager.GetComponentData<SumData>(system).sum);
@@ -1124,15 +1237,15 @@ namespace Unity.Entities.Tests
             // See: https://unity.slack.com/archives/C01HYKXLM42/p1654006277589939
             var entity0 = World.EntityManager.CreateEntity(typeof(EcsTestData));
             World.EntityManager.SetComponentData(entity0, new EcsTestData(1));
-            World.EntityManager.AddSharedComponentManaged(entity0, new SharedData1(1));
+            World.EntityManager.AddSharedComponent(entity0, new SharedData1(1));
 
             var entity1 = World.EntityManager.CreateEntity(typeof(EcsTestData));
             World.EntityManager.SetComponentData(entity1, new EcsTestData(10));
-            World.EntityManager.AddSharedComponentManaged(entity1, new SharedData1(1));
+            World.EntityManager.AddSharedComponent(entity1, new SharedData1(1));
 
             var entity2 = World.EntityManager.CreateEntity(typeof(EcsTestData));
             World.EntityManager.SetComponentData(entity2, new EcsTestData(100));
-            World.EntityManager.AddSharedComponentManaged(entity2, new SharedData1(2));
+            World.EntityManager.AddSharedComponent(entity2, new SharedData1(2));
 
             var system = World.GetOrCreateSystem<SameBackingQuery_NoInterferenceSystem>();
             system.Update(World.Unmanaged);
