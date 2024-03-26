@@ -20,6 +20,7 @@ namespace Unity.Entities
         HasManagedEntityRefs = 512,
         HasWeakAssetRefs = 1024,
         HasSystemInstanceComponents = 2048,
+        HasUnityObjectRefs = 4096,
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -48,6 +49,7 @@ namespace Unity.Entities
         public int ScalarEntityPatchCount;
         public int BufferEntityPatchCount;
         public ulong StableHash;
+        public ulong BloomFilterMask;
 
         // The order that per-component-type data is stored in memory within an archetype does not necessarily match
         // the order that types are stored in the Types/Offsets/SizeOfs/etc. arrays. The memory order of types is stable across
@@ -99,6 +101,7 @@ namespace Unity.Entities
         public bool HasManagedEntityRefs => (Flags & ArchetypeFlags.HasManagedEntityRefs) != 0;
         public bool HasCompanionComponents => (Flags & ArchetypeFlags.HasCompanionComponents) != 0;
         public bool HasWeakAssetRefs => (Flags & ArchetypeFlags.HasWeakAssetRefs) != 0;
+        public bool HasUnityObjectRefs => (Flags & ArchetypeFlags.HasUnityObjectRefs) != 0;
         public bool HasSystemInstanceComponents => (Flags & ArchetypeFlags.HasSystemInstanceComponents) != 0;
 
         public int NumNativeComponentData => FirstBufferComponent - 1;

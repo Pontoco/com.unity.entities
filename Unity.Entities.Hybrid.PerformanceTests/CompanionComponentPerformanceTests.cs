@@ -1,5 +1,6 @@
 #if !UNITY_DISABLE_MANAGED_COMPONENTS
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using Unity.Collections;
@@ -56,8 +57,19 @@ namespace Unity.Entities.Hybrid.PerformanceTests
                               BakingUtility.BakingFlags.AddEntityGUID
         };
 
+        private static IEnumerable<int> GetParameterValuesForCompanionComponent_TransformSync()
+        {
+            yield return 1;
+            yield return 10;
+            yield return 100;
+            yield return 1000;
+#if !UNITY_EDITOR_LINUX // [DOTS-9856] Linux editor performance is much slower than other desktop platforms
+            yield return 9000;
+#endif
+        }
+
         [Test, Performance]
-        public void CompanionComponent_TransformSync([Values(1, 10, 100, 1000, 9000)] int companionCount)
+        public unsafe void CompanionComponent_TransformSync([ValueSource("GetParameterValuesForCompanionComponent_TransformSync")] int companionCount)
         {
             BakingUtility.AddAdditionalCompanionComponentType(typeof(ConversionTestCompanionComponent));
 
@@ -87,31 +99,43 @@ namespace Unity.Entities.Hybrid.PerformanceTests
             }
 
             var companionGameObjectUpdateTransformSystem =
-                m_DefaultWorld.World.GetExistingSystemManaged<CompanionGameObjectUpdateTransformSystem>();
-            Measure.ProfilerMarkers(companionGameObjectUpdateTransformSystem.GetProfilerMarkerName());
+                m_DefaultWorld.World.GetExistingSystem<CompanionGameObjectUpdateTransformSystem>();
+            var statePtr = m_DefaultWorld.World.Unmanaged.ResolveSystemState(companionGameObjectUpdateTransformSystem);
+            Measure.ProfilerMarkers(statePtr->GetProfilerMarkerName(m_DefaultWorld.World));
 
             // Validate positions not moved
             for (int i = 0; i < entities.Length; i++)
             {
-                var companionLink = m_DefaultWorld.World.EntityManager.GetComponentObject<CompanionLink>(entities[i]);
-                Assert.AreEqual(0f, companionLink.Companion.transform.localPosition.y);
+                var companionLink = m_DefaultWorld.World.EntityManager.GetComponentData<CompanionLink>(entities[i]);
+                Assert.AreEqual(0f, companionLink.Companion.Value.transform.localPosition.y);
             }
 
             m_DefaultWorld.World.Update();
-            companionGameObjectUpdateTransformSystem.CompleteDependencyInternal();
+            statePtr->CompleteDependencyInternal();
 
             // Validate things moved
             for (int i = 0; i < entities.Length; i++)
             {
-                var companionLink = m_DefaultWorld.World.EntityManager.GetComponentObject<CompanionLink>(entities[i]);
-                Assert.AreEqual(42f, companionLink.Companion.transform.localPosition.y);
+                var companionLink = m_DefaultWorld.World.EntityManager.GetComponentData<CompanionLink>(entities[i]);
+                Assert.AreEqual(42f, companionLink.Companion.Value.transform.localPosition.y);
             }
 
             entities.Dispose();
         }
 
-        [Test, Performance]
-        public void CompanionComponent_ConvertScene([Values(1, 10, 100, 1000, 10000)] int numObjects)
+        private static IEnumerable<int> GetParameterValuesForCompanionComponent_ConvertScene()
+        {
+            yield return 1;
+            yield return 10;
+            yield return 100;
+            yield return 1000;
+#if !UNITY_EDITOR_LINUX // [DOTS-9856] Linux editor performance is much slower than other desktop platforms
+            yield return 10000;
+#endif
+        }
+
+        [Test, Performance, Timeout(1000000)]
+        public void CompanionComponent_ConvertScene([ValueSource("GetParameterValuesForCompanionComponent_ConvertScene")] int numObjects)
         {
             BakingUtility.AddAdditionalCompanionComponentType(typeof(ConversionTestCompanionComponent));
 

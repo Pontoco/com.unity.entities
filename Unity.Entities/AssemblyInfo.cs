@@ -37,8 +37,6 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Unity.Entities.Baking.PerformanceTests")]
 // This adds internal access for UNSUPPORTED package that is currently in the Monorepo
 [assembly: InternalsVisibleTo("Unity.StableID.Hybrid")]
-[assembly: InternalsVisibleTo("Unity.Environment.Baking")]
-[assembly: InternalsVisibleTo("Unity.Environment.Runtime")]
 #if UNITY_ENTITIES_RUNTIME_TOOLING
 [assembly: InternalsVisibleTo("Unity.Entities.RuntimeTools")]
 [assembly: InternalsVisibleTo("Unity.Entities.RuntimeTools2")]

@@ -19,6 +19,19 @@ namespace Unity.Entities.Editor.Tests
         {
             m_World = new World(nameof(HierarchyNodeStoreTests));
             m_HierarchyNodeStore = new HierarchyNodeStore(Allocator.Persistent);
+
+            var emptyArchetype = m_World.EntityManager.CreateArchetype();
+            var entities = m_World.EntityManager.CreateEntity(emptyArchetype, 11, Allocator.Temp);
+
+            // Some of these tests rely on entities having specific indices and versions.
+            // But they also require those entities to effectively exist.
+            // As long as they run in an empty world, they should be fine.
+            // The following loop makes sure of that.
+            for (int i = 0; i < entities.Length; i++)
+            {
+                Assert.AreEqual(entities[i].Index, i);
+                Assert.AreEqual(entities[i].Version, 1);
+            }
         }
 
         [TearDown]
@@ -151,10 +164,36 @@ namespace Unity.Entities.Editor.Tests
         }
 
         [Test]
+        public void RemoveNode_WhenNodeIsNotEntityWithNoChildren_IsRemovedCorrectly()
+        {
+            var node = m_HierarchyNodeStore.AddNode(HierarchyNodeHandle.FromGameObject(1));
+            var root = m_HierarchyNodeStore.GetNode(HierarchyNodeHandle.Root);
+            Assert.That(m_HierarchyNodeStore.Exists(node), Is.EqualTo(true));
+            Assert.That(root.GetChildCount(), Is.EqualTo(1));
+            m_HierarchyNodeStore.RemoveNode(node);
+            Assert.That(m_HierarchyNodeStore.Exists(node), Is.EqualTo(false));
+            Assert.That(root.GetChildCount(), Is.EqualTo(0));
+        }
+
+        [Test]
         public void RemoveNode_WhenNodeIsEntityWithChildren_IsRemovedCorrectly()
         {
             var parent = m_HierarchyNodeStore.AddNode(HierarchyNodeHandle.FromEntity(new Entity {Index = 1, Version = 1}));
             var child = m_HierarchyNodeStore.AddNode(HierarchyNodeHandle.FromEntity(new Entity {Index = 2, Version = 1}), parent);
+
+            Assert.That(m_HierarchyNodeStore.Exists(parent), Is.EqualTo(true));
+            Assert.That(m_HierarchyNodeStore.Exists(child), Is.EqualTo(true));
+            Assert.That(parent.GetChildCount(), Is.EqualTo(1));
+
+            m_HierarchyNodeStore.RemoveNode(parent);
+        }
+
+
+        [Test]
+        public void RemoveNode_WhenNodeIsNotEntityWithChildren_IsRemovedCorrectly()
+        {
+            var parent = m_HierarchyNodeStore.AddNode(HierarchyNodeHandle.FromGameObject(1));
+            var child = m_HierarchyNodeStore.AddNode(HierarchyNodeHandle.FromGameObject(2), parent);
 
             Assert.That(m_HierarchyNodeStore.Exists(parent), Is.EqualTo(true));
             Assert.That(m_HierarchyNodeStore.Exists(child), Is.EqualTo(true));
@@ -406,6 +445,27 @@ namespace Unity.Entities.Editor.Tests
             Assert.That(childA.GetParent(), Is.EqualTo(m_HierarchyNodeStore.GetNode(HierarchyNodeHandle.Root)));
             Assert.That(childB.GetParent(), Is.EqualTo(m_HierarchyNodeStore.GetNode(HierarchyNodeHandle.Root)));
             Assert.That(grandparent.GetParent(), Is.EqualTo(m_HierarchyNodeStore.GetNode(HierarchyNodeHandle.Root)));
+        }
+
+        [Test]
+        public void Parenting_WhenRemoveParentWithRemoveChildrenRecursivelyFlag_RemovesAllChildren()
+        {
+            var grandparent = m_HierarchyNodeStore.AddNode(HierarchyNodeHandle.FromGameObject(1));
+            var parent = m_HierarchyNodeStore.AddNode(HierarchyNodeHandle.FromGameObject(2), grandparent);
+            var childA = m_HierarchyNodeStore.AddNode(HierarchyNodeHandle.FromGameObject(3), parent);
+            var childB = m_HierarchyNodeStore.AddNode(HierarchyNodeHandle.FromGameObject(4), parent);
+
+            Assert.That(childA.GetParent(), Is.EqualTo(parent));
+            Assert.That(childB.GetParent(), Is.EqualTo(parent));
+            Assert.That(parent.GetParent(), Is.EqualTo(grandparent));
+            Assert.That(grandparent.GetParent(), Is.EqualTo(m_HierarchyNodeStore.GetNode(HierarchyNodeHandle.Root)));
+
+            m_HierarchyNodeStore.RemoveNode(grandparent, removeChildrenRecursively: true);
+
+            Assert.That(m_HierarchyNodeStore.Exists(grandparent), Is.False);
+            Assert.That(m_HierarchyNodeStore.Exists(parent), Is.False);
+            Assert.That(m_HierarchyNodeStore.Exists(childA), Is.False);
+            Assert.That(m_HierarchyNodeStore.Exists(childB), Is.False);
         }
 
         [Test]

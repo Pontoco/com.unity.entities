@@ -13,12 +13,12 @@ using UnityEngine;
 [UpdateInGroup(typeof(TransformBakingSystemGroup))]
 [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
 [BurstCompile]
-internal partial class TransformBakingSystem : SystemBase
+internal partial struct TransformBakingSystem : ISystem
 {
     EntityQuery               _Query;
     BakedRuntimeTransformsJob _Job;
 
-    ProfilerMarker            _Playback = new ProfilerMarker("EntityCommandBuffer.Playback");
+    ProfilerMarker            _Playback;
 
     [BurstCompile]
     struct BakedRuntimeTransformsJob : IJobChunk
@@ -99,7 +99,9 @@ internal partial class TransformBakingSystem : SystemBase
         {
             return math.abs(scale.x - scale.y) <= k_Tolerance &&
                    math.abs(scale.x - scale.z) <= k_Tolerance &&
-                   math.abs(scale.y - scale.z) <= k_Tolerance;
+                   math.abs(scale.y - scale.z) <= k_Tolerance &&
+                   math.sign(scale.x) == math.sign(scale.y) &&
+                   math.sign(scale.x) == math.sign(scale.z);
         }
 
         static float3 CalculateLossyScale(float4x4 matrix, quaternion rotation)
@@ -261,13 +263,15 @@ internal partial class TransformBakingSystem : SystemBase
             }
         }
     }
-    protected override void OnCreate()
+
+    [BurstCompile]
+    public void OnCreate(ref SystemState state)
     {
-        base.OnCreate();
+        _Playback = new ProfilerMarker("EntityCommandBuffer.Playback");
         _Query = new EntityQueryBuilder(Allocator.Temp)
             .WithAll<TransformAuthoring>()
             .WithOptions(EntityQueryOptions.IncludeDisabledEntities | EntityQueryOptions.IncludePrefab)
-            .Build(this);
+            .Build(ref state);
 
         // The BakedRuntimeTransformsJob only processes chunks with Transform authoring changes as well as structural changes that may have added / removed the Static tag component
         _Query.AddChangedVersionFilter(ComponentType.ReadOnly<TransformAuthoring>());
@@ -277,46 +281,48 @@ internal partial class TransformBakingSystem : SystemBase
             .WithAll<Static>()
             // Intentionally leaving static prefabs out of this query, so we don't strip the hierarchy or transform components based on this
             .WithOptions(EntityQueryOptions.IncludeDisabledEntities)
-            .Build(this).GetEntityQueryMask();
+            .Build(ref state).GetEntityQueryMask();
 
         _Job.HasTransform = new EntityQueryBuilder(Allocator.Temp)
             .WithAll<LocalTransform>()
             .WithOptions(EntityQueryOptions.IncludeDisabledEntities | EntityQueryOptions.IncludePrefab)
-            .Build(this).GetEntityQueryMask();
+            .Build(ref state).GetEntityQueryMask();
 
         _Job.HasPostTransformMatrix = new EntityQueryBuilder(Allocator.Temp)
             .WithAll<PostTransformMatrix>()
             .WithOptions(EntityQueryOptions.IncludeDisabledEntities | EntityQueryOptions.IncludePrefab)
-            .Build(this).GetEntityQueryMask();
+            .Build(ref state).GetEntityQueryMask();
 
         _Job.HasParent = new EntityQueryBuilder(Allocator.Temp)
             .WithAll<Parent>()
             .WithOptions(EntityQueryOptions.IncludeDisabledEntities | EntityQueryOptions.IncludePrefab)
-            .Build(this).GetEntityQueryMask();
+            .Build(ref state).GetEntityQueryMask();
 
         _Job.HasLocalToWorld = new EntityQueryBuilder(Allocator.Temp)
             .WithAll<LocalToWorld>()
             .WithOptions(EntityQueryOptions.IncludeDisabledEntities | EntityQueryOptions.IncludePrefab)
-            .Build(this).GetEntityQueryMask();
+            .Build(ref state).GetEntityQueryMask();
     }
-    protected override void OnUpdate()
+
+    [BurstCompile]
+    public void OnUpdate(ref SystemState state)
     {
         var buf = new EntityCommandBuffer(Allocator.TempJob);
-        _Job.Transform = GetComponentTypeHandle<TransformAuthoring>(true);
-        _Job.Entities = GetEntityTypeHandle();
-        _Job.LocalToWorld = GetComponentTypeHandle<LocalToWorld>();
-        _Job.Parent = GetComponentTypeHandle<Parent>();
-        _Job.LocalTransform = GetComponentTypeHandle<LocalTransform>();
-        _Job.PostTransformMatrix = GetComponentTypeHandle<PostTransformMatrix>();
-        _Job.ChangeVersion = LastSystemVersion;
+        _Job.Transform = SystemAPI.GetComponentTypeHandle<TransformAuthoring>(true);
+        _Job.Entities = SystemAPI.GetEntityTypeHandle();
+        _Job.LocalToWorld = SystemAPI.GetComponentTypeHandle<LocalToWorld>();
+        _Job.Parent = SystemAPI.GetComponentTypeHandle<Parent>();
+        _Job.LocalTransform = SystemAPI.GetComponentTypeHandle<LocalTransform>();
+        _Job.PostTransformMatrix = SystemAPI.GetComponentTypeHandle<PostTransformMatrix>();
+        _Job.ChangeVersion = state.LastSystemVersion;
         _Job.Commands = buf.AsParallelWriter();
-        Dependency = _Job.ScheduleParallelByRef(_Query, Dependency);
+        state.Dependency = _Job.ScheduleParallelByRef(_Query, state.Dependency);
 
-        CompleteDependency();
+        state.CompleteDependency();
 
         using (_Playback.Auto())
         {
-            buf.Playback(EntityManager);
+            buf.Playback(state.EntityManager);
         }
 
         buf.Dispose();

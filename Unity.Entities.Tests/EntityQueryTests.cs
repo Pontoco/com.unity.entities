@@ -2345,7 +2345,9 @@ namespace Unity.Entities.Tests
                 Assert.IsTrue(newWorld.EntityManager.UniversalQuery.IsCacheValid);
                 Assert.DoesNotThrow(() => newWorld.EntityManager.UniversalQuery.CheckChunkListCacheConsistency());
 
+#pragma warning disable CS0618 // Type or member is obsolete
                 m_Manager.CopyAndReplaceEntitiesFrom(newWorld.EntityManager);
+#pragma warning restore CS0618 // Type or member is obsolete
 
                 Assert.IsTrue(newWorld.EntityManager.UniversalQuery.IsCacheValid);
                 Assert.DoesNotThrow(() => newWorld.EntityManager.UniversalQuery.CheckChunkListCacheConsistency());
@@ -2773,6 +2775,74 @@ namespace Unity.Entities.Tests
             {
                 FastAssert.AreEqual(newValues[i].value, m_Manager.GetComponentData<EcsTestData>(entities[i]).value);
             }
+        }
+
+        public partial struct WriteEnableableSystem : ISystem
+        {
+            private EntityQuery _query;
+
+            public void OnCreate(ref SystemState state)
+            {
+                _query = SystemAPI.QueryBuilder()
+                    .WithAll<EcsTestData>()
+                    .WithDisabledRW<EcsTestDataEnableable>()
+                    .Build();
+            }
+
+            public void OnUpdate(ref SystemState state)
+            {
+                state.Dependency = new TestJob().ScheduleParallel(_query, state.Dependency);
+            }
+
+            private partial struct TestJob : IJobEntity
+            {
+                private void Execute(in EcsTestData test, EnabledRefRW<EcsTestDataEnableable> test2)
+                {
+                }
+            }
+        }
+        public partial struct ImplicitReadEnableableSystem : ISystem
+        {
+            private EntityQuery _query;
+
+            public void OnCreate(ref SystemState state)
+            {
+                _query = SystemAPI.QueryBuilder()
+                    .WithAll<EcsTestData>()
+                    .WithNone<EcsTestDataEnableable>()
+                    .Build();
+            }
+
+            public void OnUpdate(ref SystemState state)
+            {
+                state.Dependency = new TestJob().ScheduleParallel(_query, state.Dependency);
+            }
+
+            private partial struct TestJob : IJobEntity
+            {
+                private void Execute(in EcsTestData test)
+                {
+                }
+            }
+        }
+        [Test]
+        [TestRequiresCollectionChecks("Requires Job Safety System")]
+        public void WithNone_EnableableType_HasCorrectJobDependencies()
+        {
+            var archetype = m_Manager.CreateArchetype(typeof(EcsTestData), typeof(EcsTestDataEnableable));
+            using var query1 = new EntityQueryBuilder(Allocator.Temp)
+                .WithAll<EcsTestData,EcsTestDataEnableable>().Build(m_Manager);
+            using var query2 = new EntityQueryBuilder(Allocator.Temp)
+                .WithAll<EcsTestData>().WithNone<EcsTestDataEnableable>().Build(m_Manager);
+            using var entities = m_Manager.CreateEntity(archetype, 1000, World.UpdateAllocator.ToAllocator);
+            for (int i = 0; i < entities.Length; ++i)
+                m_Manager.SetComponentEnabled<EcsTestDataEnableable>(entities[i], false);
+            // A job run on query2 (which implicitly reads the enabled bits of EcsTestDataEnableable, but does not directly manipulate the type)
+            // must wait on an earlier job running on query1 (which has write access to EcsTestDataEnableable, and may toggle its enabled bits).
+            var sys1 = World.CreateSystem<WriteEnableableSystem>();
+            var sys2 = World.CreateSystem<ImplicitReadEnableableSystem>();
+            sys1.Update(World.Unmanaged);
+            sys2.Update(World.Unmanaged);
         }
 
         struct ReadFromEnableableComponentJob : IJobChunk
@@ -4369,10 +4439,29 @@ namespace Unity.Entities.Tests
                 Present = new[] { ComponentType.ReadOnly<EcsTestDataEnableable2>(), ComponentType.ReadWrite<EcsTestFloatData3>() },
                 Options = EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities
             };
-            using (var query = m_Manager.CreateEntityQuery(queryDesc))
-            {
-                Assert.That(query.GetEntityQueryDesc(), Is.EqualTo(queryDesc));
-            }
+
+            using var query = m_Manager.CreateEntityQuery(queryDesc);
+            var entityQueryDesc = query.GetEntityQueryDesc();
+            foreach (var all in entityQueryDesc.All)
+                Assert.IsTrue(queryDesc.All.Contains(all));
+            foreach (var any in entityQueryDesc.Any)
+                Assert.IsTrue(queryDesc.Any.Contains(any));
+            foreach (var disabled in entityQueryDesc.Disabled)
+                Assert.IsTrue(queryDesc.Disabled.Contains(disabled));
+
+            // All `None` components are silently given `ReadOnly` access mode during query creation
+            var actualNone = entityQueryDesc.None.Select(n => n.TypeIndex).ToArray();
+            var expectedNone = queryDesc.None.Select(n => n.TypeIndex).ToArray();
+
+            foreach (var none in expectedNone)
+                Assert.IsTrue(actualNone.Contains(none));
+
+            var actualAbsent = entityQueryDesc.Absent.Select(n => n.TypeIndex).ToArray();
+            var expectedAbsent = queryDesc.Absent.Select(n => n.TypeIndex).ToArray();
+
+            // All `Absent` components are silently given `ReadOnly` access mode during query creation
+            foreach (var absent in expectedAbsent)
+                Assert.IsTrue(actualAbsent.Contains(absent));
         }
 
         [Test]
@@ -4823,6 +4912,32 @@ namespace Unity.Entities.Tests
 
             m_Manager.EndExclusiveEntityTransaction();
             outputCount.Dispose();
+        }
+
+        [Test]
+        public void CreateEntityQuery_MultiQueryDesc_MoreRequiredComponentsInAdditionalQuery_Works()
+        {
+            // Regression test for DOTS-9397
+            Assert.DoesNotThrow(() =>
+            {
+                // Test the special case where the first query desc has zero required components,
+                // and the second has at least one.
+                var query = new EntityQueryBuilder(Allocator.Temp)
+                    .WithAbsent<EcsTestData>()
+                    .AddAdditionalQuery()
+                    .WithAll<EcsTestData3>()
+                    .Build(m_Manager);
+            });
+
+            Assert.DoesNotThrow(() =>
+            {
+                // Test the general case where the second query desc has more required components than the first.
+                var query = new EntityQueryBuilder(Allocator.Temp)
+                    .WithAll<EcsTestData>()
+                    .AddAdditionalQuery()
+                    .WithAll<EcsTestData2,EcsTestData3>()
+                    .Build(m_Manager);
+            });
         }
     }
 }

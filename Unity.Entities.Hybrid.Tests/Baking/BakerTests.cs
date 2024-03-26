@@ -2068,12 +2068,13 @@ namespace Unity.Entities.Hybrid.Tests.Baking
         private BakingSystem m_BakingSystem;
         private GameObject m_Prefab;
         private GameObject m_Prefab1;
+        private GameObject m_PrefabWithAbtractMB;
         private bool m_PreviousBakingState;
         private TestLiveConversionSettings m_Settings;
 
-        readonly string kNullEntityException = "InvalidOperationException: Entity Entity.Null doesn't belong to the current authoring component.";
+        readonly System.Text.RegularExpressions.Regex kNullEntityException = new System.Text.RegularExpressions.Regex("InvalidOperationException: Entity Entity.Null doesn't belong to the current authoring component.");
         readonly System.Text.RegularExpressions.Regex kNumberedEntityException = new System.Text.RegularExpressions.Regex(@"InvalidOperationException: Entity Entity\(\d+:\d+\) doesn't belong to the current authoring component.");
-        readonly string kCreateAdditionalEntitiesInvalidArrayException = "ArgumentException: outputEntities is not valid or empty";
+        readonly System.Text.RegularExpressions.Regex kCreateAdditionalEntitiesInvalidArrayException = new System.Text.RegularExpressions.Regex("ArgumentException: outputEntities is not valid or empty");
 
         [SetUp]
         public override void Setup()
@@ -2092,6 +2093,7 @@ namespace Unity.Entities.Hybrid.Tests.Baking
             m_Manager = World.EntityManager;
             m_Prefab = InstantiatePrefab("Prefab");
             m_Prefab1 = InstantiatePrefab("Prefab");
+            m_PrefabWithAbtractMB = InstantiatePrefab("Prefab_AbstractMB");
         }
 
         [TearDown]
@@ -2564,7 +2566,7 @@ namespace Unity.Entities.Hybrid.Tests.Baking
             var component0 = m_Prefab.AddComponent<DefaultAuthoringComponent>();
             using (new BakerDataUtility.OverrideBakers(true, typeof(AddDuplicateComponent_PrimaryEntity)))
             {
-                UnityEngine.TestTools.LogAssert.Expect(LogType.Exception, "InvalidOperationException: Baking error: Attempt to add duplicate component Unity.Entities.Hybrid.Tests.Baking.ComponentTest1 for Baker Unity.Entities.Hybrid.Tests.Baking.AddDuplicateComponent_PrimaryEntity with authoring component Unity.Entities.Hybrid.Tests.Baking.DefaultAuthoringComponent.  Previous component added by Baker Unity.Entities.Hybrid.Tests.Baking.AddDuplicateComponent_PrimaryEntity");
+                UnityEngine.TestTools.LogAssert.Expect(LogType.Exception, new Regex("InvalidOperationException: Baking error: Attempt to add duplicate component Unity.Entities.Hybrid.Tests.Baking.ComponentTest1 for Baker Unity.Entities.Hybrid.Tests.Baking.AddDuplicateComponent_PrimaryEntity with authoring component Unity.Entities.Hybrid.Tests.Baking.DefaultAuthoringComponent.  Previous component added by Baker Unity.Entities.Hybrid.Tests.Baking.AddDuplicateComponent_PrimaryEntity"));
 
                 BakingUtility.BakeGameObjects(World, new[] {m_Prefab}, m_BakingSystem.BakingSettings);
             }
@@ -2577,7 +2579,7 @@ namespace Unity.Entities.Hybrid.Tests.Baking
             var component0 = m_Prefab.AddComponent<Authoring_AddComponentByComponentType_PrimaryEntity>();
             var component1 = m_Prefab.AddComponent<Authoring_AddComponentGeneric_PrimaryValidEntity>();
 
-            UnityEngine.TestTools.LogAssert.Expect(LogType.Exception, "InvalidOperationException: Baking error: Attempt to add duplicate component Unity.Entities.Hybrid.Tests.Baking.ComponentTest1 for Baker Unity.Entities.Hybrid.Tests.Baking.AddComponentGeneric_PrimaryValidEntity with authoring component Unity.Entities.Hybrid.Tests.Baking.Authoring_AddComponentGeneric_PrimaryValidEntity.  Previous component added by Baker Unity.Entities.Hybrid.Tests.Baking.AddComponentByComponentType_PrimaryEntity");
+            UnityEngine.TestTools.LogAssert.Expect(LogType.Exception, new Regex("InvalidOperationException: Baking error: Attempt to add duplicate component Unity.Entities.Hybrid.Tests.Baking.ComponentTest1 for Baker Unity.Entities.Hybrid.Tests.Baking.AddComponentGeneric_PrimaryValidEntity with authoring component Unity.Entities.Hybrid.Tests.Baking.Authoring_AddComponentGeneric_PrimaryValidEntity.  Previous component added by Baker Unity.Entities.Hybrid.Tests.Baking.AddComponentByComponentType_PrimaryEntity"));
 
             BakingUtility.BakeGameObjects(World, new[] {m_Prefab}, m_BakingSystem.BakingSettings);
         }
@@ -2587,7 +2589,7 @@ namespace Unity.Entities.Hybrid.Tests.Baking
         {
             var component0 = m_Prefab.AddComponent<Authoring_AddComponentGeneric_PrimaryValidEntity>();
             var component1 = m_Prefab.AddComponent<DefaultAuthoringComponent>();
-            UnityEngine.TestTools.LogAssert.Expect(LogType.Exception, "InvalidOperationException: Baking error: Attempt to add duplicate component Unity.Entities.Hybrid.Tests.Baking.ComponentTest1 for Baker Unity.Entities.Hybrid.Tests.Baking.AddComponentByMultipleComponentTypes_PrimaryEntity with authoring component Unity.Entities.Hybrid.Tests.Baking.DefaultAuthoringComponent.  Previous component added by Baker Unity.Entities.Hybrid.Tests.Baking.AddComponentGeneric_PrimaryValidEntity");
+            UnityEngine.TestTools.LogAssert.Expect(LogType.Exception, new Regex("InvalidOperationException: Baking error: Attempt to add duplicate component Unity.Entities.Hybrid.Tests.Baking.ComponentTest1 for Baker Unity.Entities.Hybrid.Tests.Baking.AddComponentByMultipleComponentTypes_PrimaryEntity with authoring component Unity.Entities.Hybrid.Tests.Baking.DefaultAuthoringComponent.  Previous component added by Baker Unity.Entities.Hybrid.Tests.Baking.AddComponentGeneric_PrimaryValidEntity"));
 
             using (new BakerDataUtility.OverrideBakers(true, typeof(AddComponentGeneric_PrimaryValidEntity),
                 typeof(AddComponentByMultipleComponentTypes_PrimaryEntity)))
@@ -2660,7 +2662,7 @@ namespace Unity.Entities.Hybrid.Tests.Baking
                 typeof(AddComponent_WithMultipleBakers_PerAuthoringComponent_Baker1_Throws),
                 typeof(AddComponent_WithMultipleBakers_PerAuthoringComponent_Baker2_Throws)))
             {
-                UnityEngine.TestTools.LogAssert.Expect(LogType.Exception, "InvalidOperationException: Baking error: Attempt to add duplicate component Unity.Entities.Hybrid.Tests.Baking.ComponentTest2 for Baker Unity.Entities.Hybrid.Tests.Baking.BakerTests+AddComponent_WithMultipleBakers_PerAuthoringComponent_Baker2_Throws with authoring component Unity.Entities.Hybrid.Tests.Baking.DefaultAuthoringComponent.  Previous component added by Baker Unity.Entities.Hybrid.Tests.Baking.BakerTests+AddComponent_WithMultipleBakers_PerAuthoringComponent_Baker1_Throws");
+                UnityEngine.TestTools.LogAssert.Expect(LogType.Exception, new Regex(@"InvalidOperationException: Baking error: Attempt to add duplicate component Unity.Entities.Hybrid.Tests.Baking.ComponentTest2 for Baker Unity.Entities.Hybrid.Tests.Baking.BakerTests\+AddComponent_WithMultipleBakers_PerAuthoringComponent_Baker2_Throws with authoring component Unity.Entities.Hybrid.Tests.Baking.DefaultAuthoringComponent.  Previous component added by Baker Unity.Entities.Hybrid.Tests.Baking.BakerTests\+AddComponent_WithMultipleBakers_PerAuthoringComponent_Baker1_Throws"));
 
                 BakingUtility.BakeGameObjects(World, new[] {m_Prefab}, m_BakingSystem.BakingSettings);
             }
@@ -2750,7 +2752,7 @@ namespace Unity.Entities.Hybrid.Tests.Baking
             using (new BakerDataUtility.OverrideBakers(true, typeof(DefaultAuthoringAddComponentBaker),
                 typeof(DefaultAuthoringSetComponentBaker_Value5)))
             {
-                UnityEngine.TestTools.LogAssert.Expect(LogType.Exception, "InvalidOperationException: Baking error: Attempt to set component Unity.Entities.Hybrid.Tests.Baking.ComponentTest1 for Baker DefaultAuthoringSetComponentBaker_Value5 with authoring component DefaultAuthoringComponent but the component was added by a different Baker DefaultAuthoringAddComponentBaker");
+                UnityEngine.TestTools.LogAssert.Expect(LogType.Exception, new Regex("InvalidOperationException: Baking error: Attempt to set component Unity.Entities.Hybrid.Tests.Baking.ComponentTest1 for Baker DefaultAuthoringSetComponentBaker_Value5 with authoring component DefaultAuthoringComponent but the component was added by a different Baker DefaultAuthoringAddComponentBaker"));
                 BakingUtility.BakeGameObjects(World, new[] {m_Prefab}, m_BakingSystem.BakingSettings);
 
                 // SetComponent was rejected thus the value continues to be 0
@@ -2775,7 +2777,7 @@ namespace Unity.Entities.Hybrid.Tests.Baking
             using (new BakerDataUtility.OverrideBakers(true, typeof(DefaultAuthoringAddSharedComponentBaker),
                 typeof(DefaultAuthoringSetSharedComponentBaker_Value5)))
             {
-                UnityEngine.TestTools.LogAssert.Expect(LogType.Exception, "InvalidOperationException: Baking error: Attempt to set component Unity.Entities.Hybrid.Tests.Baking.SharedComponentTest1 for Baker DefaultAuthoringSetSharedComponentBaker_Value5 with authoring component DefaultAuthoringComponent but the component was added by a different Baker DefaultAuthoringAddSharedComponentBaker");
+                UnityEngine.TestTools.LogAssert.Expect(LogType.Exception, new Regex("InvalidOperationException: Baking error: Attempt to set component Unity.Entities.Hybrid.Tests.Baking.SharedComponentTest1 for Baker DefaultAuthoringSetSharedComponentBaker_Value5 with authoring component DefaultAuthoringComponent but the component was added by a different Baker DefaultAuthoringAddSharedComponentBaker"));
                 BakingUtility.BakeGameObjects(World, new[] {m_Prefab}, m_BakingSystem.BakingSettings);
 
                 // SetSharedComponent was rejected thus the value continues to be 0
@@ -2934,7 +2936,7 @@ namespace Unity.Entities.Hybrid.Tests.Baking
             using (new BakerDataUtility.OverrideBakers(true, typeof(DefaultAuthoringAddEnableableComponentBaker),
                        typeof(DefaultAuthoringSetEnableableComponentBaker)))
             {
-                UnityEngine.TestTools.LogAssert.Expect(LogType.Exception, "InvalidOperationException: Baking error: Attempt to set component Unity.Entities.Tests.EcsTestDataEnableable for Baker DefaultAuthoringSetEnableableComponentBaker with authoring component DefaultAuthoringComponent but the component was added by a different Baker DefaultAuthoringAddEnableableComponentBaker");
+                UnityEngine.TestTools.LogAssert.Expect(LogType.Exception, new Regex("InvalidOperationException: Baking error: Attempt to set component Unity.Entities.Tests.EcsTestDataEnableable for Baker DefaultAuthoringSetEnableableComponentBaker with authoring component DefaultAuthoringComponent but the component was added by a different Baker DefaultAuthoringAddEnableableComponentBaker"));
                 BakingUtility.BakeGameObjects(World, new[] {m_Prefab}, m_BakingSystem.BakingSettings);
 
                 // SetComponentEnabled was rejected thus the value continues to be true
@@ -2966,7 +2968,7 @@ namespace Unity.Entities.Hybrid.Tests.Baking
             using (new BakerDataUtility.OverrideBakers(true, typeof(SetBufferFromSameBakerWorksBaker),
                 typeof(SetBufferFromOtherBakerThrowsBaker)))
             {
-                UnityEngine.TestTools.LogAssert.Expect(LogType.Exception, "InvalidOperationException: Baking error: Attempt to set component Unity.Entities.Hybrid.Tests.Baking.IntElement for Baker SetBufferFromOtherBakerThrowsBaker with authoring component DefaultAuthoringComponent but the component was added by a different Baker SetBufferFromSameBakerWorksBaker");
+                UnityEngine.TestTools.LogAssert.Expect(LogType.Exception, new Regex("InvalidOperationException: Baking error: Attempt to set component Unity.Entities.Hybrid.Tests.Baking.IntElement for Baker SetBufferFromOtherBakerThrowsBaker with authoring component DefaultAuthoringComponent but the component was added by a different Baker SetBufferFromSameBakerWorksBaker"));
                 BakingUtility.BakeGameObjects(World, new[] {m_Prefab}, m_BakingSystem.BakingSettings);
 
                 var query = World.EntityManager.CreateEntityQuery(new EntityQueryDesc {All = new ComponentType[]{typeof(IntElement)}});
@@ -3034,7 +3036,7 @@ namespace Unity.Entities.Hybrid.Tests.Baking
             using (new BakerDataUtility.OverrideBakers(true, typeof(AppendToBufferFromSameBakerWorksBaker),
                 typeof(AppendToBufferFromOtherBakerThrowsBaker)))
             {
-                UnityEngine.TestTools.LogAssert.Expect(LogType.Exception, "InvalidOperationException: Baking error: Attempt to set component Unity.Entities.Hybrid.Tests.Baking.IntElement for Baker AppendToBufferFromOtherBakerThrowsBaker with authoring component DefaultAuthoringComponent but the component was added by a different Baker AppendToBufferFromSameBakerWorksBaker");
+                UnityEngine.TestTools.LogAssert.Expect(LogType.Exception, new Regex("InvalidOperationException: Baking error: Attempt to set component Unity.Entities.Hybrid.Tests.Baking.IntElement for Baker AppendToBufferFromOtherBakerThrowsBaker with authoring component DefaultAuthoringComponent but the component was added by a different Baker AppendToBufferFromSameBakerWorksBaker"));
                 BakingUtility.BakeGameObjects(World, new[] {m_Prefab}, m_BakingSystem.BakingSettings);
 
                 var query = World.EntityManager.CreateEntityQuery(new EntityQueryDesc {All = new ComponentType[]{typeof(IntElement)}});
@@ -3854,6 +3856,24 @@ namespace Unity.Entities.Hybrid.Tests.Baking
                 Assert.AreEqual(1, testQuery.CalculateEntityCount());
                 var entity = testQuery.ToEntityArray(Allocator.Temp)[0];
                 Assert.AreEqual(3, m_BakingSystem.EntityManager.GetComponentData<ComponentTest4>(entity).Field);
+            }
+        }
+
+        public sealed class GetComponent_Of_AbstractAuthoring : Baker<DefaultAuthoringComponent>
+        {
+            public override void Bake(DefaultAuthoringComponent authoring)
+            {
+                GetComponents<AbstractAuthoring>();
+            }
+        }
+
+        [Test]
+        public void GetComponent_Of_AbstractAuthoring_DoesNotThrow()
+        {
+            m_PrefabWithAbtractMB.AddComponent<DefaultAuthoringComponent>();
+            using (new BakerDataUtility.OverrideBakers(true, typeof(GetComponent_Of_AbstractAuthoring)))
+            {
+                Assert.DoesNotThrow(() => BakingUtility.BakeGameObjects(World, new[] {m_PrefabWithAbtractMB}, m_BakingSystem.BakingSettings));
             }
         }
     }

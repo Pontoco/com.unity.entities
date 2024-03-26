@@ -77,6 +77,14 @@ namespace Unity.Entities
     {
         public WithAllAttribute(params Type[] types){}
     }
+    public sealed class WithDisabledAttribute : Attribute
+    {
+        public WithDisabledAttribute(params Type[] types){}
+    }
+    public sealed class WithChangeFilterAttribute : Attribute
+    {
+        public WithChangeFilterAttribute(params Type[] types){}
+    }
 
     public static class IJobEntityExtensions
     {
@@ -417,6 +425,7 @@ namespace Unity.Entities
 
     public struct EntityQuery
     {
+        public Entity GetSingletonEntity() => default;
         public EntityQueryMask GetEntityQueryMask() => default;
         public EntityQueryMask GetEntityQueryMask(EntityQuery query) => default;
         public RefRW<T> GetSingletonRW<T>() where T : unmanaged, IComponentData => throw new Exception();
@@ -479,6 +488,8 @@ namespace Unity.Entities
         public static T GetComponent<T>(Entity entity) where T : struct, IComponentData => default;
         public static void SetComponent<T>(Entity entity, T component) where T : struct, IComponentData {}
         public static bool HasComponent<T>(Entity entity) where T : struct, IComponentData => default;
+        public static RefRO<T> GetComponentRO<T>(Entity entity) where T : unmanaged, IComponentData => default;
+        public static RefRW<T> GetComponentRW<T>(Entity entity) where T : unmanaged, IComponentData => default;
 
         // Buffer
         public static BufferLookup<T> GetBufferLookup<T>(bool isReadOnly = false) where T : unmanaged, IBufferElementData => default;
@@ -502,6 +513,7 @@ namespace Unity.Entities
             public static T GetSingleton<T>() where T : class => throw new Exception();
         }
 
+        public static Entity GetSingletonEntity<T>() where T : unmanaged => throw new Exception();
         public static bool HasSingleton<T>() where T : unmanaged => throw new Exception();
         public static bool IsComponentEnabled<T>(Entity entity) where T : unmanaged, IComponentData, IEnableableComponent => throw new Exception();
         public static void SetComponentEnabled<T>(Entity entity, bool value) where T : unmanaged, IComponentData, IEnableableComponent => throw new Exception();
@@ -614,6 +626,8 @@ namespace Unity.Entities
 
     public struct EntityManager
     {
+        public T GetComponentObject<T>(Entity entity) => default;
+
         private class StructuralChangeMethodAttribute : Attribute { }
 
         public int EntityOrderVersion => throw default;

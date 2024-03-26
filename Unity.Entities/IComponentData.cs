@@ -123,6 +123,9 @@ namespace Unity.Entities
     /// An interface for a component that must be removed individually after its entity is destroyed.
     /// </summary>
     /// <remarks>
+    /// Cleanup components should only be added to individual entities at runtime.
+    /// They will not be serialized during the baking process, will not be copied to entity instances
+    /// during instantiation, and are not included when entities are copied between Worlds.
     /// See [Cleanup Components](xref:components-cleanup) for additional information.
     /// </remarks>
     [RequireImplementors]
@@ -146,6 +149,12 @@ namespace Unity.Entities
     /// <summary>
     /// An interface for a buffer component that must be removed individually after its entity is destroyed.
     /// </summary>
+    /// <remarks>
+    /// Cleanup components should only be added to individual entities at runtime.
+    /// They will not be serialized during the baking process, will not be copied to entity instances
+    /// during instantiation, and are not included when entities are copied between Worlds.
+    /// See [Cleanup Components](xref:components-cleanup) for additional information.
+    /// </remarks>
     /// <seealso cref="ICleanupComponentData"/>
     /// <seealso cref="IBufferElementData"/>
     [RequireImplementors]
@@ -169,6 +178,12 @@ namespace Unity.Entities
     /// <summary>
     /// An interface for a shared component that must be removed individually after its entity is destroyed.
     /// </summary>
+    /// <remarks>
+    /// Cleanup components should only be added to individual entities at runtime.
+    /// They will not be serialized during the baking process, will not be copied to entity instances
+    /// during instantiation, and are not included when entities are copied between Worlds.
+    /// See [Cleanup Shared Components](xref:components-cleanup-shared) for additional information.
+    /// </remarks>
     /// <seealso cref="ICleanupComponentData"/>
     /// <seealso cref="ISharedComponentData"/>
     [RequireImplementors]
@@ -266,6 +281,23 @@ namespace Unity.Entities
             return new LinkedEntityGroup {Value = e};
         }
     }
+
+    /// <summary>
+    /// The presence of this component instructs <see cref="M:EntityManager.Instantiate"/> to not to create the
+    /// <see cref="LinkedEntityGroup"/> buffer component for every prefab instance, and the prefab child entities
+    /// are still created. This component is not kept on the instantiated entities afterwards. This component is
+    /// completely ignored and treated as a regular tag component when LinkedEntityGroup is not present on the
+    /// source prefab entity.
+    /// </summary>
+    /// <remarks>
+    /// The use of this component is likely for performance consideration, because creating buffer components is
+    /// an expensive process involving heap memory allocations linear to the number of instances being instantiated.
+    /// Omitting the LinkedEntityGroup could make it difficult to associate the children entities with their prefab
+    /// roots; in such case components with Entity reference like <see cref="Unity.Transforms.Parent"/> could be
+    /// useful.
+    /// </remarks>
+    public struct OmitLinkedEntityGroupFromPrefabInstance : IComponentData
+    { }
 
     /// <summary>
     /// A Unity-defined shared component assigned to all entities in the same subscene.

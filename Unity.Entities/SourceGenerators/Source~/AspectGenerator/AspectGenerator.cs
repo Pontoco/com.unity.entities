@@ -17,8 +17,8 @@ namespace Unity.Entities.SourceGen.Aspect
     public class AspectGenerator : ISourceGenerator, IDiagnosticFrame
     {
         static readonly string s_GeneratorName = "Aspect";
-        private static Dictionary<string, AspectDefinition> m_cache = null;
-        private static Dictionary<string, AspectDefinition> AspectCache => m_cache ??= new Dictionary<string, AspectDefinition>();
+        Dictionary<string, AspectDefinition> m_cache = null;
+        Dictionary<string, AspectDefinition> AspectCache => m_cache ??= new Dictionary<string, AspectDefinition>();
 
         /// <summary>
         /// Register our syntax receiver
@@ -393,7 +393,7 @@ namespace Unity.Entities.SourceGen.Aspect
                                 if (node.Parent != null)
                                 {
                                     if(node.Parent is TypeDeclarationSyntax typeDec
-                                       && typeDec.Modifiers.All(x => x.Kind() != SyntaxKind.PartialKeyword))
+                                       && typeDec.Modifiers.All(x => !x.IsKind(SyntaxKind.PartialKeyword)))
                                     {
                                         valid = false;
                                     }
